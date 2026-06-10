@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VidMap — YouTube Mind Map Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #0a1628 0%, #0d2450 30%, #1a4a8a 65%, #2d7dd2 100%);
+      overflow-x: hidden;
+      color: #e0f0ff;
+    }
+
+    /* ── STARS ── */
+    #stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--d, 3s) infinite ease-in-out;
+      opacity: 0;
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0; transform: scale(0.8); }
+      50%      { opacity: var(--op, 0.8); transform: scale(1.2); }
+    }
+
+    /* ── FLOATING BG CLOUDS ── */
+    .bg-cloud {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.07;
+      filter: blur(2px);
+      animation: driftCloud linear infinite;
+    }
+    @keyframes driftCloud {
+      from { transform: translateX(-200px); }
+      to   { transform: translateX(110vw); }
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative; z-index: 10;
+      padding: 1.5rem 2.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      border-bottom: 1px solid rgba(100,180,255,0.15);
+      backdrop-filter: blur(10px);
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 0 20px rgba(56,189,248,0.5);
+    }
+    .logo-text {
+      font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em;
+    }
+    .logo-text span { color: #38bdf8; }
+    .tagline {
+      font-family: 'DM Mono', monospace; font-size: 0.68rem;
+      color: rgba(150,210,255,0.6); margin-left: auto;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      position: relative; z-index: 10;
+      max-width: 860px; margin: 0 auto; padding: 2.5rem 2rem;
+    }
+
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4.5vw, 3rem);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1.15;
+      margin-bottom: 0.8rem;
+      text-shadow: 0 0 40px rgba(56,189,248,0.4);
+    }
+    .hero h1 .hl {
+      background: linear-gradient(135deg, #38bdf8, #7dd3fc, #bae6fd);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      color: rgba(150,210,255,0.7);
+      font-family: 'DM Mono', monospace; font-size: 0.85rem;
+    }
+
+    /* ── INPUT CARD ── */
+    .input-card {
+      background: rgba(10, 30, 70, 0.6);
+      border: 1px solid rgba(56,189,248,0.25);
+      border-radius: 18px; padding: 1.8rem;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 40px rgba(56,189,248,0.08);
+      position: relative; overflow: hidden; margin-bottom: 2rem;
+    }
+    .input-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+    }
+    .input-label {
+      font-family: 'DM Mono', monospace; font-size: 0.7rem;
+      color: #38bdf8; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 0.7rem; display: block;
+    }
+    .input-row { display: flex; gap: 0.75rem; }
+    .url-input {
+      flex: 1;
+      background: rgba(5,15,40,0.7);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 10px; padding: 0.85rem 1.1rem;
+      color: #e0f0ff;
+      font-family: 'DM Mono', monospace; font-size: 0.88rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .url-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 15px rgba(56,189,248,0.2);
+    }
+    .url-input::placeholder { color: rgba(100,160,220,0.4); }
+    .generate-btn {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: white; border: none; border-radius: 10px;
+      padding: 0.85rem 1.6rem;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+      box-shadow: 0 0 20px rgba(14,165,233,0.4);
+    }
+    .generate-btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 0 30px rgba(14,165,233,0.6); }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .status-bar {
+      display: none; align-items: center; gap: 0.6rem;
+      margin-top: 1rem;
+      font-family: 'DM Mono', monospace; font-size: 0.8rem;
+      color: rgba(150,210,255,0.7);
+    }
+    .status-bar.visible { display: flex; }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(56,189,248,0.2);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      display: none; margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px; color: #fca5a5;
+      font-family: 'DM Mono', monospace; font-size: 0.82rem;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── MINDMAP SECTION ── */
+    #mindmap-section { display: none; animation: fadeUp 0.6s ease; }
+    #mindmap-section.visible { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 1rem;
+    }
+    .section-title {
+      font-family: 'DM Mono', monospace; font-size: 0.7rem;
+      color: #38bdf8; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .export-btn {
+      background: transparent;
+      border: 1px solid rgba(56,189,248,0.3);
+      color: rgba(150,210,255,0.7);
+      border-radius: 8px; padding: 0.4rem 0.9rem;
+      font-family: 'DM Mono', monospace; font-size: 0.75rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .export-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+
+    .canvas-wrapper {
+      background: rgba(5,15,50,0.5);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 18px; overflow: auto;
+      box-shadow: 0 0 60px rgba(56,189,248,0.08);
+      backdrop-filter: blur(10px);
+    }
+    #mindmap-canvas { width: 100%; display: block; }
+  </style>
+</head>
+<body>
+
+<!-- Stars -->
+<div id="stars"></div>
+
+<header>
+  <div class="logo-icon">🧠</div>
+  <div><div class="logo-text">Vid<span>Map</span></div></div>
+  <div class="tagline">YouTube → Mind Map</div>
+</header>
+
+<main class="main">
+  <div class="hero">
+    <h1>Turn any YouTube video<br/>into a <span class="hl">Mind Map</span></h1>
+    <p>// paste link → get structured knowledge instantly</p>
+  </div>
+
+  <div class="input-card">
+    <label class="input-label">YouTube URL</label>
+    <div class="input-row">
+      <input type="text" class="url-input" id="urlInput"
+             placeholder="https://www.youtube.com/watch?v=..."/>
+      <button class="generate-btn" id="generateBtn" onclick="generateMindMap()">
+        Generate →
+      </button>
+    </div>
+    <div class="status-bar" id="statusBar">
+      <div class="spinner"></div>
+      <span id="statusText">Fetching transcript...</span>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div id="mindmap-section">
+    <div class="section-header">
+      <span class="section-title">// mind map output</span>
+      <button class="export-btn" onclick="exportPNG()">Export PNG ↓</button>
+    </div>
+    <div class="canvas-wrapper">
+      <canvas id="mindmap-canvas"></canvas>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── STARS ────────────────────────────────────────────────────────────────────
+(function createStars() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%; top:${Math.random()*60}%;
+      --d:${(Math.random()*4+2).toFixed(1)}s;
+      --op:${(Math.random()*0.6+0.3).toFixed(2)};
+      animation-delay:${(Math.random()*5).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+})();
+
+// ─── BG CLOUDS ────────────────────────────────────────────────────────────────
+(function createBgClouds() {
+  const sizes = [200, 280, 160, 320, 240];
+  sizes.forEach((w, i) => {
+    const el = document.createElement('canvas');
+    el.className = 'bg-cloud';
+    el.width = w; el.height = w * 0.6;
+    el.style.cssText = `
+      top:${20 + i*12}%;
+      width:${w}px; height:${w*0.6}px;
+      animation-duration:${30 + i*12}s;
+      animation-delay:${-i*7}s;
+    `;
+    drawCloudShape(el, w, w*0.6, 'rgba(255,255,255,1)');
+    document.body.appendChild(el);
+  });
+})();
+
+function drawCloudShape(canvas, w, h, color) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  const cx = w/2, cy = h/2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, h*0.35, 0, Math.PI*2);
+  ctx.arc(cx - w*0.2, cy + h*0.05, h*0.25, 0, Math.PI*2);
+  ctx.arc(cx + w*0.2, cy + h*0.05, h*0.25, 0, Math.PI*2);
+  ctx.arc(cx - w*0.1, cy - h*0.1, h*0.28, 0, Math.PI*2);
+  ctx.arc(cx + w*0.1, cy - h*0.1, h*0.28, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+const BACKEND_URL = '';
+let mindmapData = null;
+
+async function generateMindMap() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  const btn = document.getElementById('generateBtn');
+  const statusBar = document.getElementById('statusBar');
+  const errorMsg = document.getElementById('errorMsg');
+  const section = document.getElementById('mindmap-section');
+
+  btn.disabled = true;
+  statusBar.classList.add('visible');
+  errorMsg.classList.remove('visible');
+  section.classList.remove('visible');
+  setStatus('Fetching transcript...');
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    setStatus('Generating mind map with AI...');
+    const result = await res.json();
+    if (!res.ok || !result.success) throw new Error(result.error || 'Something went wrong');
+
+    mindmapData = result.data;
+    statusBar.classList.remove('visible');
+    section.classList.add('visible');
+    renderMindMap(mindmapData);
+  } catch (err) {
+    statusBar.classList.remove('visible');
+    errorMsg.textContent = '⚠ ' + err.message;
+    errorMsg.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function setStatus(t) { document.getElementById('statusText').textContent = t; }
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateMindMap();
+});
+
+// ─── MIND MAP RENDERER ────────────────────────────────────────────────────────
+const BRANCH_COLORS = ['#38bdf8','#818cf8','#34d399','#fb923c','#f472b6'];
+const GLOW_COLORS   = ['rgba(56,189,248,0.6)','rgba(129,140,248,0.6)','rgba(52,211,153,0.6)','rgba(251,146,60,0.6)','rgba(244,114,182,0.6)'];
+
+// Node positions stored for animation
+let nodes = [];
+let animFrame = null;
+let animProgress = 0;
+
+// Measure node box size
+function getNodeSize(label, type) {
+  const fontSize = type === 'root' ? 18 : type === 'branch' ? 15 : 13;
+  const maxW = type === 'root' ? 200 : type === 'branch' ? 160 : 140;
+  const padX = type === 'root' ? 30 : 20;
+  const padY = type === 'root' ? 22 : 15;
+  const lineH = fontSize * 1.4;
+
+  // Estimate lines
+  const avgCharW = fontSize * 0.6;
+  const charsPerLine = Math.floor(maxW / avgCharW);
+  const words = label.split(' ');
+  let lines = 1, cur = 0;
+  words.forEach(w => {
+    if (cur + w.length > charsPerLine && cur > 0) { lines++; cur = 0; }
+    cur += w.length + 1;
+  });
+
+  const w = Math.min(maxW, label.length * avgCharW) + padX * 2;
+  const h = lines * lineH + padY * 2 + 12; // +12 for cloud bumps
+  return { w: Math.max(w, 80), h };
+}
+
+function renderMindMap(data) {
+  const canvas = document.getElementById('mindmap-canvas');
+  const dpr = window.devicePixelRatio || 1;
+  const branches = data.children;
+
+  // Available screen area
+  const screenW = canvas.parentElement.offsetWidth;
+  const screenH = Math.min(window.innerHeight * 0.75, 700);
+
+  // Auto radius based on screen and branch count
+  const BRANCH_R = Math.min(screenW, screenH) * 0.45;
+  const SUB_R    = Math.min(screenW, screenH) * 0.45;
+  const NODE_GAP = 40;
+
+  const cx = screenW / 2, cy = screenH / 2;
+  nodes = [];
+
+  // Root
+  const rootSize = getNodeSize(data.title, 'root');
+  nodes.push({
+    x: cx, y: cy,
+    label: data.title, color: '#e0f0ff',
+    glow: 'rgba(56,189,248,0.8)',
+    isRoot: true, isBranch: false,
+    w: rootSize.w, h: rootSize.h,
+    delay: 0, parentIdx: -1
+  });
+
+  const angleStep = (2 * Math.PI) / branches.length;
+
+  branches.forEach((branch, i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const bx = cx + Math.cos(angle) * BRANCH_R;
+    const by = cy + Math.sin(angle) * BRANCH_R;
+    const color = BRANCH_COLORS[i % BRANCH_COLORS.length];
+    const glow  = GLOW_COLORS[i % GLOW_COLORS.length];
+    const bSize = getNodeSize(branch.title, 'branch');
+
+    nodes.push({
+      x: bx, y: by,
+      label: branch.title, color, glow,
+      isRoot: false, isBranch: true,
+      w: bSize.w, h: bSize.h,
+      delay: 0.15 + i * 0.12, parentIdx: 0
+    });
+    const bIdx = nodes.length - 1;
+
+    const subCount = branch.children.length;
+    if (subCount === 0) return;
+
+    const spreadAngle = Math.min(Math.PI * 0.6, (subCount - 1) * 0.32);
+    branch.children.forEach((sub, j) => {
+      const subAngle = subCount === 1
+        ? angle
+        : angle + (j / (subCount - 1) - 0.5) * spreadAngle;
+      const sx = bx + Math.cos(subAngle) * SUB_R;
+      const sy = by + Math.sin(subAngle) * SUB_R;
+      const sSize = getNodeSize(sub.title, 'leaf');
+
+      nodes.push({
+        x: sx, y: sy,
+        label: sub.title, color, glow,
+        isRoot: false, isBranch: false,
+        w: sSize.w, h: sSize.h,
+        delay: 0.3 + i * 0.12 + j * 0.1,
+        parentIdx: bIdx
+      });
+    });
+  });
+
+  // Collision resolution — push overlapping nodes apart
+  for (let iter = 0; iter < 120; iter++) {
+    for (let a = 1; a < nodes.length; a++) {
+      for (let b = a + 1; b < nodes.length; b++) {
+        const na = nodes[a], nb = nodes[b];
+        const minDx = (na.w + nb.w) / 2 + NODE_GAP;
+        const minDy = (na.h + nb.h) / 2 + NODE_GAP;
+        const dx = nb.x - na.x;
+        const dy = nb.y - na.y;
+        const overlapX = minDx - Math.abs(dx);
+        const overlapY = minDy - Math.abs(dy);
+
+        if (overlapX > 0 && overlapY > 0) {
+          const push = Math.min(overlapX, overlapY) / 2;
+          const len = Math.sqrt(dx*dx + dy*dy) || 1;
+          if (!na.isRoot) { na.x -= (dx/len)*push; na.y -= (dy/len)*push; }
+          if (!nb.isRoot) { nb.x += (dx/len)*push; nb.y += (dy/len)*push; }
+        }
+      }
+    }
+  }
+
+  // Find bounding box
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    minX = Math.min(minX, n.x - n.w/2);
+    minY = Math.min(minY, n.y - n.h/2);
+    maxX = Math.max(maxX, n.x + n.w/2);
+    maxY = Math.max(maxY, n.y + n.h/2);
+  });
+
+  const PAD = 60;
+  const contentW = maxX - minX + PAD * 2;
+  const contentH = maxY - minY + PAD * 2;
+
+  // Scale down to fit screen if too big
+  const scaleX = screenW / contentW;
+  const scaleY = screenH / contentH;
+  const scale  = Math.min(scaleX, scaleY, 1.0); // never scale up, only down
+
+  // Shift + scale all nodes to fit exactly
+  const offsetX = PAD - minX;
+  const offsetY = PAD - minY;
+  nodes.forEach(n => {
+    n.x = (n.x + offsetX) * scale;
+    n.y = (n.y + offsetY) * scale;
+    n.w *= scale;
+    n.h *= scale;
+  });
+
+  const W = Math.max(contentW * scale,1400);
+  const H = Math.max(contentH * scale,1000);
+
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animProgress = 0;
+  animateTree(canvas, ctx, W, H, Date.now());
+}
+
+function animateTree(canvas, ctx, W, H, startTime) {
+  const elapsed = (Date.now() - startTime) / 1000; // seconds
+
+  ctx.clearRect(0, 0, W, H);
+  drawSkyBackground(ctx, W, H);
+
+  // Draw connections first
+  nodes.forEach((node, i) => {
+    if (node.parentIdx < 0) return;
+    const parent = nodes[node.parentIdx];
+    const t = Math.min(1, Math.max(0, (elapsed - node.delay) / 0.5));
+    if (t <= 0) return;
+
+    const tx = parent.x + (node.x - parent.x) * easeOut(t);
+    const ty = parent.y + (node.y - parent.y) * easeOut(t);
+
+    // Animated branch line
+    ctx.save();
+    ctx.beginPath();
+    const mx = (parent.x + tx) / 2;
+    const my = (parent.y + ty) / 2 - 20;
+    ctx.moveTo(parent.x, parent.y);
+    ctx.quadraticCurveTo(mx, my, tx, ty);
+    ctx.strokeStyle = node.color + '99';
+    ctx.lineWidth = node.isBranch ? 2.5 : 1.5;
+    ctx.lineCap = 'round';
+    // Glow
+    ctx.shadowColor = node.glow;
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Draw nodes
+  nodes.forEach((node, i) => {
+    const t = Math.min(1, Math.max(0, (elapsed - node.delay) / 0.45));
+    if (t <= 0) return;
+
+    let drawX = node.x, drawY = node.y;
+    if (node.parentIdx >= 0) {
+      const parent = nodes[node.parentIdx];
+      drawX = parent.x + (node.x - parent.x) * easeOut(t);
+      drawY = parent.y + (node.y - parent.y) * easeOut(t);
+    }
+
+    // Floating animation for fully appeared nodes
+    const floatOffset = t >= 1 ? Math.sin((Date.now()/1000) * 0.8 + i) * 3 : 0;
+
+    drawCloudNode(ctx, drawX, drawY + floatOffset, node.label, node.color, node.glow,
+                  node.isRoot ? 'root' : node.isBranch ? 'branch' : 'leaf', t);
+  });
+
+  animFrame = requestAnimationFrame(() => animateTree(canvas, ctx, W, H, startTime));
+}
+
+function drawSkyBackground(ctx, W, H) {
+  // Deep sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   '#050f28');
+  grad.addColorStop(0.5, '#0d2450');
+  grad.addColorStop(1,   '#1a4a8a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid lines
+  ctx.save();
+  ctx.strokeStyle = 'rgba(56,189,248,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 50) {
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 50) {
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCloudNode(ctx, x, y, text, color, glow, type, progress) {
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, progress * 1.5);
+
+  const fontSize = type === 'root' ? 18 : type === 'branch' ? 15 : 13;
+  ctx.font = `${type === 'root' ? 700 : 600} ${fontSize}px Syne, sans-serif`;
+
+  const maxW = type === 'root' ? 200 : type === 'branch' ? 160 : 140;
+  const lines = wrapText(ctx, text, maxW);
+  const lineH = fontSize * 1.4;
+  const textW = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)));
+  const textH = lines.length * lineH;
+
+  const padX = type === 'root' ? 30 : 20;
+  const padY = type === 'root' ? 22 : 15;
+
+  const cW = textW + padX * 2;
+  const cH = textH + padY * 2;
+
+  // Glow shadow
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = type === 'root' ? 30 : 18;
+
+  // Cloud shape path
+  cloudPath(ctx, x, y, cW, cH, type === 'root' ? 20 : 14);
+
+  // Fill
+  const fillGrad = ctx.createLinearGradient(x - cW/2, y - cH/2, x + cW/2, y + cH/2);
+  if (type === 'root') {
+    fillGrad.addColorStop(0, 'rgba(10,25,70,0.95)');
+    fillGrad.addColorStop(1, 'rgba(15,35,90,0.95)');
+  } else {
+    fillGrad.addColorStop(0, 'rgba(5,15,50,0.92)');
+    fillGrad.addColorStop(1, 'rgba(8,20,60,0.92)');
+  }
+  ctx.fillStyle = fillGrad;
+  ctx.fill();
+
+  // Border
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = color + (type === 'root' ? 'ff' : 'cc');
+  ctx.lineWidth = type === 'root' ? 2.5 : 1.8;
+  ctx.stroke();
+
+  // Text
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = type === 'root' ? '#e0f0ff' : color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const startY = y - textH/2 + lineH/2;
+  lines.forEach((line, i) => ctx.fillText(line, x, startY + i * lineH));
+
+  ctx.restore();
+}
+
+// Cloud-shaped rounded rect with bumps on top
+function cloudPath(ctx, cx, cy, w, h, r) {
+  const x = cx - w/2, y = cy - h/2;
+  const bumps = Math.max(2, Math.floor(w / 40));
+  const bumpR = r * 0.7;
+
+  ctx.beginPath();
+  // Bottom rounded rect base
+  ctx.moveTo(x + r, y + h);
+  ctx.lineTo(x + w - r, y + h);
+  ctx.quadraticCurveTo(x + w, y + h, x + w, y + h - r);
+  ctx.lineTo(x + w, y + r);
+  ctx.quadraticCurveTo(x + w, y, x + w - r, y);
+
+  // Top bumps
+  const topY = y - bumpR * 0.5;
+  const step = w / bumps;
+  for (let i = bumps - 1; i >= 0; i--) {
+    const bx = x + step * i + step / 2;
+    ctx.arc(bx, topY, bumpR, 0, Math.PI, true);
+  }
+
+  ctx.lineTo(x + r, y);
+  ctx.quadraticCurveTo(x, y, x, y + r);
+  ctx.lineTo(x, y + h - r);
+  ctx.quadraticCurveTo(x, y + h, x + r, y + h);
+  ctx.closePath();
+}
+
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = []; let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function exportPNG() {
+  const canvas = document.getElementById('mindmap-canvas');
+  const link = document.createElement('a');
+  link.download = 'vidmap.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+window.addEventListener('resize', () => { if (mindmapData) renderMindMap(mindmapData); });
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+flask==3.0.0
+flask-cors==4.0.0
+youtube-transcript-api==1.2.4
+groq==1.0.0
+gunicorn==20.1.0
