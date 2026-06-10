@@ -25,9 +25,15 @@ def extract_video_id(url):
     return None
 
 def get_transcript(video_id):
-    """Fetch transcript from YouTube using new API style"""
     try:
-        ytt_api = YouTubeTranscriptApi()
+        from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+        
+        proxy_config = WebshareProxyConfig(
+            proxy_username="",
+            proxy_password="",
+        )
+        ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config)
         fetched = ytt_api.fetch(video_id)
         full_text = " ".join([entry.text for entry in fetched])
         return full_text

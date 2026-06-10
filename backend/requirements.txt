@@ -4,3 +4,4 @@ youtube-transcript-api==1.2.4
 groq==1.0.0
 gunicorn==21.2.0
 setuptools
+requests
